@@ -1,102 +1,124 @@
-# AI Resume Analyzer
+# Resume Analyzer AI API
 
-A high-utility, structured AI data pipeline that evaluates raw technical resumes against specific target job descriptions. Engineered using the `liteLLM` abstraction gateway and powered by the Google Gemini free developer tier, this application leverages strategic system prompt engineering and few-shot formatting rules to transform unstructured text inputs into strict, predictable recruiter metric reports.
-
----
-
-## 🚀 Key Features
-
-- **Decoupled Prompt Layer Engineering (`prompts.py`):** Separates systemic behavior instructions and prompt text layouts from the main application loop execution code for maximum clarity.
-- **Role-Targeted Profiling:** Rejects generic, open-ended evaluations by forcing the model to run analysis through the lens of an elite technical recruiter seeking a specific target role (e.g., *Junior AI Engineer*).
-- **Enforced Output Schema:** Uses a low temperature setting (`0.1`) combined with negative constraints to completely strip conversational filler and guarantee a consistent, predictable markdown report layout every single time.
-- **Single-Shot Data Pipeline Architecture:** Bypasses conversational context memory lists since evaluations are independent utility actions, optimizing network payload performance and costs.
-- **Multi-Line Terminal Input Engine:** Implements a robust string collection matrix using a dedicated terminal capture loop so users can copy-and-paste multi-page documents seamlessly.
+A production-grade, asynchronous FastAPI service that parses raw binary PDF resumes and processes them through an engineered Large Language Model pipeline. Leveraging the `liteLLM` gateway and powered by Google Gemini, this API supports both general software engineering audits and hyper-targeted role-based assessments, guaranteeing output delivery inside strict, parseable JSON schema payloads.
 
 ---
 
-## 📁 Repository Blueprint
+## 🚀 Key Architectural Features
+
+- **Pydantic Structural Enforcement (`schemas.py`):** Rejects erratic markdown or conversational string outputs from the AI by routing calls using rigid `response_format` constraint gates.
+- **Dynamic Dual-Route Extraction:** Implements conditional parsing prompts. If a query parameter is passed, it executes a market-fit gap analysis; if omitted, it returns a general technical summary.
+- **Memory-Safe PDF Stream Parsing:** Employs `pypdf` combined with memory-resident `io.BytesIO` byte wrappers to extract text on the fly without performing heavy, un-safe server hard-drive writes.
+- **Asynchronous Multitasking Gateway:** Uses native FastAPI `async/await` mechanics to read multipart file packages streamingly without gridlocking upstream thread execution loops.
+- **CORS Infrastructure Integration:** Configured with open cross-origin allowances to support seamless out-of-the-box integration with modern frontend single-page web applications.
+
+---
+
+## 📁 Repository Map
 
 ```text
-ai-resume-analyzer/
+resume-analyzer-api/
 │
-├── .env                  # Private workspace developer credentials (git-ignored)
-├── .env.example          # Public documentation blueprint for local environment configurations
-├── .gitignore            # Explicitly bars venv, cache folders, and secrets from version tracking
-├── README.md             # Systems documentation and engineering usage manuals
-├── requirements.txt      # Decoupled project package software dependencies
-├── prompts.py            # The Prompt Layer containing hardcoded system rules and user templates
-└── main.py               # Main application entry point running inputs, composition, and API loops
+├── .env                  # Encrypted workspace developer credentials (git-ignored)
+├── README.md             # Systems documentation and technical execution manuals
+├── requirements.txt      # Decoupled project package application dependencies
+├── schemas.py            # Strict Pydantic BaseModel validation gatekeepers
+├── prompts.py            # Isolated System Instructions and structural User templates
+├── pdf_reader.py         # Dedicated binary PDF data character stream extractor
+├── analyzer.py           # Core business worker orchestrating model formatting blocks
+└── main.py               # FastAPI router engine initialization, CORS, and endpoint paths
 ```
 
 ---
 
-## 🔑 Configuration & API Key Registration
+## 🌐 API Endpoint Specification
 
-The application uses standard local environment variables isolated from git tracking. Follow these steps to secure and register your developer credentials:
+### `POST /analyze`
 
-1. **Acquire a Developer Key:**
-   Log into the [Google AI Studio Console](https://google.com) and generate a free API key for prototyping.
+Accepts a multi-part file binary upload alongside an optional URL string modifier to calculate assessment metrics.
 
-2. **Establish the Environment File:**
-   Duplicate the provided configuration boilerplate inside your repository root folder:
-   ```bash
-   cp .env.example .env
-   ```
-
-3. **Populate Your Token Syntax Exactly:**
-   Open your newly created `.env` file and insert your cryptographic developer key. Avoid using quote marks `""` or trailing spaces around your key string:
-   ```ini
-   GEMINI_API_KEY=AIzaSyYourActualSecureGoogleStudioKeyHere
-   ```
-
-*Note: If your API key is invalid, corrupted, or has un-vetted permissions, the application will catch a `401 UNAUTHENTICATED` runtime exception and exit safely.*
+#### Request Components:
+- **Headers:** `Content-Type: multipart/form-data`
+- **Query Parameter:** `target_role` *(String | Optional)* — The technical career milestone role to judge the candidate qualifications against.
+- **Body Payload (Form Data):** `file` *(Binary PDF | Mandatory)* — The physical resume document.
 
 ---
 
-## 🛠️ Local Execution Blueprint
+## 📝 Usage & Integration Examples
 
-To boot the interactive script locally, initialize your isolated virtual environment wrapper and trigger the system entry point:
+### 1. Example Request (Targeted Role Mode)
+
+To hit the API using standard terminal tool chains like `curl`, reference your file binary using the `@` symbol and attach the query string suffix:
 
 ```bash
-# 1. Activate your isolated environment wrapper
+curl -X 'POST' \
+  'http://127.0.0' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: multipart/form-data' \
+  -F 'file=@junior_developer_resume.pdf;type=application/pdf'
+```
+
+---
+
+### 2. Example Request (General Evaluation Mode)
+
+If you omit the query parameter completely from your connection call, the API defaults to an organic general critique:
+
+```bash
+curl -X 'POST' \
+  'http://127.0.0' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: multipart/form-data' \
+  -F 'file=@junior_developer_resume.pdf;type=application/pdf'
+```
+
+---
+
+### 3. Example JSON Response Payload
+
+Regardless of the incoming configuration, the system sanitizes raw responses, providing metadata tracking parameters, and outputs clean numerical values and array structures:
+
+```json
+{
+  "mode": "targeted",
+  "target_role": "AI Engineer",
+  "filename": "junior_developer_resume.pdf",
+  "score": 78,
+  "strengths": [
+    "Solid core Python foundations including production-ready asynchronous route design via FastAPI and Pydantic.",
+    "Measurable database tuning history, reducing relational PostgreSQL lookup latencies by 12% via declarative indexes."
+  ],
+  "weaknesses": [
+    "Lacks documented field exposure to enterprise LLM orchestration layers such as LangChain, LlamaIndex, or native tool-calling maps.",
+    "No visible application experience involving unstructured data retrieval mechanisms or semantic search indexing pipelines."
+  ],
+  "suggestions": [
+    "Refactor your local expense calculator project to consume unstructured financial transaction logs via a vector store database like ChromaDB or Qdrant.",
+    "Incorporate a dedicated retrieval-augmented generation (RAG) pipeline to demonstrate deep mastery of modern AI backend requirements."
+  ]
+}
+```
+
+---
+
+## 🛠️ Local Installation & Activation Blueprint
+
+To execute your API application server sandbox locally, initialize your isolated environment wrapper and boot the server using Uvicorn:
+
+```bash
+# 1. Spin up your local virtual environment
+python -m venv .venv
 source .venv/bin/activate  # On Mac/Linux
 # .venv\Scripts\activate   # On Windows
 
-# 2. Verify dependencies are fully registered
+# 2. Register required packages
 pip install -r requirements.txt
 
-# 3. Boot the application execution loop
+# 3. Secure your Google AI Studio credentials in your .env file
+# GEMINI_API_KEY=AIzaSy...
+
+# 4. Fire up the hot-reloading web worker
 python main.py
 ```
 
----
-
-## 📊 Standard Output Schema Structure
-
-When execution completes successfully, the application will always return a perfectly aligned report matching this precise schema taxonomy:
-
-```text
-============================================================
-📊 RECRUITER ASSESSMENT REPORT:
-============================================================
-Overall Score: [Numerical evaluation, e.g., 85]/100
-
-Strengths
-- [Targeted skill or project alignment point 1]
-- [Targeted skill or project alignment point 2]
-
-Weaknesses
-- [Identified gap relative to the target role 1]
-- [Identified gap relative to the target role 2]
-
-Missing Skills
-- [Missing core industry tool keyword 1]
-- [Missing core industry tool keyword 2]
-
-Suggestions
-- [Actionable metric-driven advice to improve the content]
-
-Interview Readiness
-- [Brief predictive breakdown of their technical round preparation level]
-============================================================
-```
+Once running, navigate your web browser directly to **`http://127.0.0`** or (http://localhost:8000/docs#/)** (Swagger UI) to access the interactive Swagger UI panel interface.

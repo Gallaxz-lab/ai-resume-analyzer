@@ -1,80 +1,58 @@
 import os
-import sys
+from fastapi import FastAPI, UploadFile, File, HTTPException, status, Query
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from litellm import APIError,completion
-from prompts import RESUME_ANALYZER_SYSTEM_PROMPT, RESUME_ANALYZER_USER_TEMPLATE
+from analyzer import analyze_resume_with_ai
+from litellm.exceptions import APIError
 
 load_dotenv()
-Model_Target = "gemini/gemini-3.6-flash"
+app = FastAPI(title="Resume Analyzer AI API", version="1.0.0")
 
-if not os.getenv("GEMINI_API_KEY"):
-    print("❌ GEMINI_API_KEY not found in environment variables.")
-    sys.exit(1)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-
-def main():
-    print("\n" + "="*60)
-    print("📋  AI RESUME ANALYZER ENGINE  |  VERSION 1.0  ")
-    print("="*60)
-    print(" -> Targeted Role Profiling: Active")
-    print(" -> Strict Output Formatting Schema: Enforced")
-    print("="*60 + "\n")
-
-    #1: Capture target role parameters
-    print("💼 Step 1: Specify your Target Job Role.")
-    target_job = input("Target Job >> ").strip()
-    if not target_job:
-        print("❌ Error: Target Job role cannot be blank.")
-        return
-    #2: Capture resume text input (no file upload, just raw text)
-    print("\n📄 Step 2: Paste the full raw text of the Resume.")
-    print("(When finished pasting, press Enter, type 'SEND', and press Enter again to execute) \n" + "-"*60)
-    resume_lines = []
-    while True:
-        line = input()
-        if line.strip() == "SEND":
-            break
-        resume_lines.append(line)
-    resume_text = "\n".join(resume_lines).strip()
-    if not resume_text:
-        print("❌ Error: Resume text cannot be blank.")
-        return
-    print ("\n✅ Input captured successfully. Processing analysis...\n")
-    #3: Dynamic string composition compiling user context into the template
-    formatted_user_prompt = RESUME_ANALYZER_USER_TEMPLATE.format(
-        target_job=target_job,
-        resume_text=resume_text
-    )
-    #4: Construct execution payload context
-    messages = [
-        {"role": "system", "content": RESUME_ANALYZER_SYSTEM_PROMPT},
-        {"role": "user", "content": formatted_user_prompt}
-    ]
-    try:
-        #5: Trigger network calculation over the free Gemini tier
-        response = completion(
-            model=Model_Target,
-            messages=messages,
-            temperature=0.1,  # Low temperature forces adherence to instructions
-            custom_llm_provider="gemini"
+@app.post("/analyze", status_code=status.HTTP_200_OK)
+async def analyze_resume_endpoint(
+    file: UploadFile = File(...),
+    target_job: str | None = Query(None, description="The optional target engineering role to filter by.")
+):
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported File Type. Only standard PDF (.pdf) documents are accepted."
         )
-
-        ai_response = response.choices[0].message.content
-
-        #6: Render the strictly formatted feedback payload
-        print("\n📊 RECRUITER ASSESSMENT REPORT:")
-        print("="*60)
-        print(ai_response)
-        print("="*60 + "\n")
-    except APIError as e:
-        if "503" in str(e) or "UNAVAILABLE" in str(e):
-            print("\n⏳ Google's free servers are currently crowded. Retrying your request in 3 seconds...")
-        else:
-            print(f"\n❌ API Error: {e}\n")
-    except APIError as e:
-        print(f"\n❌ Pipeline Connection Error: {e}")
+        
+    try:
+        file_bytes = await file.read() 
+        structured_report = analyze_resume_with_ai(file_bytes, target_job)
+        return {
+            "target_job": target_job,
+            "filename": file.filename,
+            **structured_report        }
+        
+    except ValueError as val_err:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, 
+            detail=str(val_err)
+        )
+    except APIError as api_err:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Upstream AI Provider authentication or rate limit fault: {str(api_err)}"
+        )
     except Exception as e:
-        print(f"\n⚠️ Unexpected operational fault: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected web server exception occurred: {str(e)}"
+        )
+    finally:
+        await file.close()
 
 if __name__ == "__main__":
-    main()
+    import uvicorn
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
