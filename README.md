@@ -1,82 +1,62 @@
 # Resume Analyzer AI API
 
-A production-grade, asynchronous FastAPI service that parses raw binary PDF resumes and processes them through an engineered Large Language Model pipeline. Leveraging the `liteLLM` gateway and powered by Google Gemini, this API supports both general software engineering audits and hyper-targeted role-based assessments, guaranteeing output delivery inside strict, parseable JSON schema payloads.
+An API that reads a PDF resume and returns a score, strengths, weaknesses and suggestions as clean, structured JSON. It can give a general review or judge the resume against a specific job role.
+
+Built with **FastAPI**, **Google Gemini** (through LiteLLM) and **Pydantic**.
 
 ---
 
-## 🚀 Key Architectural Features
+## Features
 
-- **Pydantic Structural Enforcement (`schemas.py`):** Rejects erratic markdown or conversational string outputs from the AI by routing calls using rigid `response_format` constraint gates.
-- **Dynamic Dual-Route Extraction:** Implements conditional parsing prompts. If a query parameter is passed, it executes a market-fit gap analysis; if omitted, it returns a general technical summary.
-- **Memory-Safe PDF Stream Parsing:** Employs `pypdf` combined with memory-resident `io.BytesIO` byte wrappers to extract text on the fly without performing heavy, un-safe server hard-drive writes.
-- **Asynchronous Multitasking Gateway:** Uses native FastAPI `async/await` mechanics to read multipart file packages streamingly without gridlocking upstream thread execution loops.
-- **CORS Infrastructure Integration:** Configured with open cross-origin allowances to support seamless out-of-the-box integration with modern frontend single-page web applications.
+- **Structured output:** the AI's answer is forced into a fixed JSON format (`schemas.py`), so the response is always machine-readable.
+- **Two modes:** pass `target_role` to get a gap analysis for that job, or leave it out for a general technical review.
+- **PDFs are read in memory:** `pypdf` with `io.BytesIO` extracts the text without saving the file to disk.
+- **Async:** the file upload is read with FastAPI `async/await`, so one request does not block others.
+- **Frontend-ready:** CORS is open to all origins so a web page can call the API. Restrict this to your own domain before any real deployment.
 
 ---
 
-## 📁 Repository Map
+## Project structure
 
-```text
+```
 resume-analyzer-api/
-│
-├── .env                  # Encrypted workspace developer credentials (git-ignored)
-├── README.md             # Systems documentation and technical execution manuals
-├── requirements.txt      # Decoupled project package application dependencies
-├── schemas.py            # Strict Pydantic BaseModel validation gatekeepers
-├── prompts.py            # Isolated System Instructions and structural User templates
-├── pdf_reader.py         # Dedicated binary PDF data character stream extractor
-├── analyzer.py           # Core business worker orchestrating model formatting blocks
-└── main.py               # FastAPI router engine initialization, CORS, and endpoint paths
+├── .env.example     # Copy to .env and add your key
+├── requirements.txt
+├── schemas.py       # Pydantic models for the JSON response
+├── prompts.py       # System instructions and prompt templates
+├── pdf_reader.py    # PDF text extraction
+├── analyzer.py      # Sends the text to the LLM and formats the result
+└── main.py          # FastAPI app, CORS and endpoint
 ```
 
 ---
 
-## 🌐 API Endpoint Specification
+## API
 
 ### `POST /analyze`
 
-Accepts a multi-part file binary upload alongside an optional URL string modifier to calculate assessment metrics.
+| Part | Details |
+|---|---|
+| Body (form data) | `file`: the resume as a PDF (required) |
+| Query parameter | `target_role`: job role to judge the resume against (optional) |
 
-#### Request Components:
-- **Headers:** `Content-Type: multipart/form-data`
-- **Query Parameter:** `target_role` *(String | Optional)* — The technical career milestone role to judge the candidate qualifications against.
-- **Body Payload (Form Data):** `file` *(Binary PDF | Mandatory)* — The physical resume document.
-
----
-
-## 📝 Usage & Integration Examples
-
-### 1. Example Request (Targeted Role Mode)
-
-To hit the API using standard terminal tool chains like `curl`, reference your file binary using the `@` symbol and attach the query string suffix:
+### Example: targeted mode
 
 ```bash
-curl -X 'POST' \
-  'http://127.0.0' \
+curl -X POST 'http://127.0.0.1:8000/analyze?target_role=AI%20Engineer' \
   -H 'accept: application/json' \
-  -H 'Content-Type: multipart/form-data' \
   -F 'file=@junior_developer_resume.pdf;type=application/pdf'
 ```
 
----
-
-### 2. Example Request (General Evaluation Mode)
-
-If you omit the query parameter completely from your connection call, the API defaults to an organic general critique:
+### Example: general mode
 
 ```bash
-curl -X 'POST' \
-  'http://127.0.0' \
+curl -X POST 'http://127.0.0.1:8000/analyze' \
   -H 'accept: application/json' \
-  -H 'Content-Type: multipart/form-data' \
   -F 'file=@junior_developer_resume.pdf;type=application/pdf'
 ```
 
----
-
-### 3. Example JSON Response Payload
-
-Regardless of the incoming configuration, the system sanitizes raw responses, providing metadata tracking parameters, and outputs clean numerical values and array structures:
+### Example response
 
 ```json
 {
@@ -85,40 +65,44 @@ Regardless of the incoming configuration, the system sanitizes raw responses, pr
   "filename": "junior_developer_resume.pdf",
   "score": 78,
   "strengths": [
-    "Solid core Python foundations including production-ready asynchronous route design via FastAPI and Pydantic.",
-    "Measurable database tuning history, reducing relational PostgreSQL lookup latencies by 12% via declarative indexes."
+    "Solid core Python foundations including asynchronous route design via FastAPI and Pydantic.",
+    "Measurable database tuning history, reducing PostgreSQL lookup latencies by 12% via indexes."
   ],
   "weaknesses": [
-    "Lacks documented field exposure to enterprise LLM orchestration layers such as LangChain, LlamaIndex, or native tool-calling maps.",
-    "No visible application experience involving unstructured data retrieval mechanisms or semantic search indexing pipelines."
+    "No documented exposure to LLM orchestration tools such as LangChain or LlamaIndex.",
+    "No visible experience with retrieval or semantic search pipelines."
   ],
   "suggestions": [
-    "Refactor your local expense calculator project to consume unstructured financial transaction logs via a vector store database like ChromaDB or Qdrant.",
-    "Incorporate a dedicated retrieval-augmented generation (RAG) pipeline to demonstrate deep mastery of modern AI backend requirements."
+    "Extend your expense calculator project to read unstructured transaction logs using a vector store such as ChromaDB.",
+    "Add a retrieval-augmented generation (RAG) pipeline to show modern AI backend skills."
   ]
 }
 ```
 
 ---
 
-## 🛠️ Local Installation & Activation Blueprint
-
-To execute your API application server sandbox locally, initialize your isolated environment wrapper and boot the server using Uvicorn:
+## Run it locally
 
 ```bash
-# 1. Spin up your local virtual environment
+# 1. Create and activate a virtual environment
 python -m venv .venv
-source .venv/bin/activate  # On Mac/Linux
-# .venv\Scripts\activate   # On Windows
+source .venv/bin/activate        # Mac/Linux
+# .venv\Scripts\activate         # Windows
 
-# 2. Register required packages
+# 2. Install packages
 pip install -r requirements.txt
 
-# 3. Secure your Google AI Studio credentials in your .env file
-# GEMINI_API_KEY=AIzaSy...
+# 3. Add your key: copy .env.example to .env and set
+#    GEMINI_API_KEY=your_key   (get one at https://aistudio.google.com)
 
-# 4. Fire up the hot-reloading web worker
+# 4. Start the server
 python main.py
 ```
 
-Once running, navigate your web browser directly to **`http://127.0.0`** or (http://localhost:8000/docs#/)** (Swagger UI) to access the interactive Swagger UI panel interface.
+Then open **http://127.0.0.1:8000/docs** and use the interactive page to upload a PDF and try `/analyze`.
+
+---
+
+## Status
+
+Working prototype for learning and portfolio use. Scores are an AI opinion and should not be treated as a real hiring assessment.
